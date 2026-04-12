@@ -1,6 +1,6 @@
 # frozen_string_literal: true
+require 'CoolRubyGem'
 require 'telegram/bot'
-
 #bot = TelegramBot.new(token: '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk')
 
 token = '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk'
