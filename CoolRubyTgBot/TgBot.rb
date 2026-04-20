@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 require 'telegram/bot'
-require 'CoolRubyGem'
-require 'CoolRubyGem/rule'
-require 'CoolRubyGem/system'
+require 'cool_ruby_gem'
+
 
 token = '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk'
 
@@ -42,6 +41,8 @@ class MarkovBot
     # Обработка команд /start, /stop, /help (разрешён ручной ввод)
     if text == '/start'
       puts "#{chat_id}- /start"
+      session.mode = nil
+      session.data = {}
       start_command(chat_id)
       return
     elsif text == '/stop'
@@ -70,7 +71,7 @@ class MarkovBot
         start_word_input(chat_id)
       when '❌ Завершить ввод'
         puts "#{chat_id}- Завершить ввод"
-        cancel_input(chat_id)
+        finish_input(chat_id)
       when '🏠 Главное меню'
         puts "#{chat_id}- Главное меню"
         show_main_menu(chat_id)
@@ -145,6 +146,41 @@ class MarkovBot
     )
   end
 
+  def finish_input(chat_id)
+    puts "#{chat_id}- Ввод завершен "
+    session = @sessions[chat_id]
+    mode = session.mode
+
+    if mode == :waiting_for_rule
+      # Завершаем ввод правил
+      if session.data[:word] && !session.data[:rules].empty?
+        apply_algorithm(chat_id)
+      else
+        session.mode = nil
+        @bot.api.send_message(
+          chat_id: chat_id,
+          text: "Ввод правил завершён. Чтобы применить алгоритм, введите слово (кнопка '🔤 Ввести слово').",
+          reply_markup: main_menu_keyboard
+        )
+      end
+    elsif mode == :waiting_for_word
+      # Завершаем ввод слова
+      if session.data[:word] && !session.data[:rules].empty?
+        apply_algorithm(chat_id)
+      else
+        session.mode = nil
+        @bot.api.send_message(
+          chat_id: chat_id,
+          text: "Слово сохранено. Теперь введите систему правил (кнопка '📝 Ввести систему').",
+          reply_markup: main_menu_keyboard
+        )
+      end
+    else
+      # Если не в режиме ввода – просто показать меню
+      show_main_menu(chat_id)
+    end
+  end
+
   def cancel_input(chat_id)
     puts "#{chat_id}- Ввод завершен "
     session = @sessions[chat_id]
@@ -161,31 +197,44 @@ class MarkovBot
   def process_rule_input(chat_id, rule_text)
     session = @sessions[chat_id]
     puts "#{chat_id}- Обработка ввода правил"
-    puts "Defined? #{defined?(CoolRubyGem)}"
-    puts "Defined? #{defined?(CoolRubyGem::Rule)}"
+
+    if rule_text == '❌ Завершить ввод'
+      finish_input(chat_id)
+      return
+    elsif rule_text == '🏠 Главное меню'
+      show_main_menu(chat_id)
+      return
+    end
+
     # Здесь можно добавить валидацию формата правила с использованием вашего гема
-    if (rule_text == '❌ Завершить ввод')
-      cancel_input(chat_id)
-    else
-      begin
-        rule = CoolRubyGem::Rule.new(rule_text)
-        session.data[:rules] << rule
-        @bot.api.send_message(
-          chat_id: chat_id,
-          text: "✅ Правило добавлено: #{rule.to_s}\nТекущая система: #{session.data[:rules].map(&:to_s).join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
-        )
-      rescue => e
-        @bot.api.send_message(
-          chat_id: chat_id,
-          text: "❌ Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
-        )
-      end
+    begin
+      puts "rule_text class: #{rule_text.class}"
+      rule = CoolRubyGem::Rule.new(rule_text).to_s
+      session.data[:rules] << rule
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "✅ Правило добавлено: #{rule.to_s}\nТекущая система: #{session.data[:rules].map(&:to_s).join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
+      )
+    rescue => e
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "❌ Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
+      )
     end
   end
 
   def process_word_input(chat_id, word)
     puts "#{chat_id}- Обработка ввода слов"
     session = @sessions[chat_id]
+
+    if word == '❌ Завершить ввод'
+      finish_input(chat_id)
+      return
+    elsif word == '🏠 Главное меню'
+      show_main_menu(chat_id)
+      return
+    end
+
     session.data[:word] = word
 
     # Если система правил уже введена, можно сразу применить
@@ -203,16 +252,17 @@ class MarkovBot
 
   def apply_algorithm(chat_id)
     puts "#{chat_id}- Результат подстановки"
+
     session = @sessions[chat_id]
     rules = CoolRubyGem::System.new(session.data[:rules])
     word = session.data[:word]
 
     # Здесь ваш алгоритм применения правил Маркова
-    result = rules.result(word)
+    res = rules.result(word)
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Система: #{rules.map(&:to_s).join(', ')}\nИсходное слово: #{word}\nРезультат: #{result}",
+      text: "Система: #{rules.to_s}\nИсходное слово: #{word}\nРезультат: #{res}",
       reply_markup: main_menu_keyboard
     )
     session.mode = nil
