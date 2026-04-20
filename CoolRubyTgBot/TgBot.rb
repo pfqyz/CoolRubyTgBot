@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 require 'telegram/bot'
-require 'cool_ruby_gem'
+require 'CoolRubyGem'
 
 
 token = '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk'
