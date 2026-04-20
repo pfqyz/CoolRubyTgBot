@@ -1,5 +1,5 @@
 PATH
-  remote: temp_gem/cool_ruby_gem
+  remote: cool_ruby_gem
   specs:
     cool_ruby_gem (0.1.0)
 

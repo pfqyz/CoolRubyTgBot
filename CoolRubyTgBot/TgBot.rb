@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 require 'telegram/bot'
-require 'CoolRubyGem'
+require 'cool_ruby_gem'
 
 
 token = '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk'
@@ -12,7 +12,6 @@ class UserSession
     @data = {}           # { rules: [], word: nil, ... }
   end
 end
-
 
 class MarkovBot
   def initialize(token)
@@ -63,18 +62,21 @@ class MarkovBot
     else
       # Не в режиме ввода – проверяем, не нажата ли кнопка (действие)
       case text
-      when '📝 Ввести систему'
+      when 'Ввести систему'
         puts "#{chat_id}- Ввести систему"
         start_system_input(chat_id)
-      when '🔤 Ввести слово'
+      when 'Ввести слово'
         puts "#{chat_id}- Ввести слово"
         start_word_input(chat_id)
-      when '❌ Завершить ввод'
+      when 'Завершить ввод'
         puts "#{chat_id}- Завершить ввод"
         finish_input(chat_id)
-      when '🏠 Главное меню'
+      when 'Главное меню'
         puts "#{chat_id}- Главное меню"
         show_main_menu(chat_id)
+      when 'Удалить последнее правило'
+        puts  "#{chat_id}- Удалить последнее правило"
+        delete_last_rule(chat_id)
       else
         puts "#{chat_id}- текст не распознан как действие "
         # Если текст не распознан как действие – игнорируем или показываем меню
@@ -88,7 +90,26 @@ class MarkovBot
     end
   end
 
-  # ---- Команды ----
+
+  def delete_last_rule(chat_id)
+    session = @sessions[chat_id]
+    if session.data[:rules].nil? || session.data[:rules].empty?
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "Правил пока нет.",
+        reply_markup: system_keyboard
+      )
+      return
+    end
+    session.data[:rules].pop
+    @bot.api.send_message(
+      chat_id: chat_id,
+      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].map(&:to_s).join(', ')}",
+      reply_markup: system_keyboard
+    )
+  end
+
+
   def start_command(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
@@ -109,7 +130,7 @@ class MarkovBot
   def help_command(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Доступные действия:\n📝 Ввести систему правил\n🔤 Ввести слово\n\nПосле ввода системы и слова я применю алгоритм Маркова.",
+      text: "Доступные действия:\nВвести систему правил\nВвести слово\n\nПосле ввода системы и слова я применю алгоритм Маркова.",
       reply_markup: main_menu_keyboard
     )
   end
@@ -130,8 +151,8 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку '❌ Завершить ввод'.",
-      reply_markup: cancel_keyboard   # клавиатура с кнопкой "Завершить ввод"
+      text: "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
+      reply_markup: system_keyboard   # клавиатура с кнопкой "Завершить ввод"
     )
   end
 
@@ -159,7 +180,7 @@ class MarkovBot
         session.mode = nil
         @bot.api.send_message(
           chat_id: chat_id,
-          text: "Ввод правил завершён. Чтобы применить алгоритм, введите слово (кнопка '🔤 Ввести слово').",
+          text: "Ввод правил завершён. Чтобы применить алгоритм, введите слово (кнопка 'Ввести слово').",
           reply_markup: main_menu_keyboard
         )
       end
@@ -171,7 +192,7 @@ class MarkovBot
         session.mode = nil
         @bot.api.send_message(
           chat_id: chat_id,
-          text: "Слово сохранено. Теперь введите систему правил (кнопка '📝 Ввести систему').",
+          text: "Слово сохранено. Теперь введите систему правил (кнопка 'Ввести систему').",
           reply_markup: main_menu_keyboard
         )
       end
@@ -198,27 +219,28 @@ class MarkovBot
     session = @sessions[chat_id]
     puts "#{chat_id}- Обработка ввода правил"
 
-    if rule_text == '❌ Завершить ввод'
+    if rule_text == 'Завершить ввод'
       finish_input(chat_id)
       return
-    elsif rule_text == '🏠 Главное меню'
+    elsif rule_text == 'Удалить последнее правило'
+      delete_last_rule(chat_id)
+      return
+    elsif rule_text == 'Главное меню'
       show_main_menu(chat_id)
       return
     end
 
-    # Здесь можно добавить валидацию формата правила с использованием вашего гема
     begin
-      puts "rule_text class: #{rule_text.class}"
       rule = CoolRubyGem::Rule.new(rule_text).to_s
       session.data[:rules] << rule
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "✅ Правило добавлено: #{rule.to_s}\nТекущая система: #{session.data[:rules].map(&:to_s).join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
+        text: "Правило добавлено: #{rule}\nТекущая система: #{session.data[:rules].map(&:to_s).join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
       )
     rescue => e
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "❌ Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
+        text: "Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
       )
     end
   end
@@ -227,10 +249,10 @@ class MarkovBot
     puts "#{chat_id}- Обработка ввода слов"
     session = @sessions[chat_id]
 
-    if word == '❌ Завершить ввод'
+    if word == 'Завершить ввод'
       finish_input(chat_id)
       return
-    elsif word == '🏠 Главное меню'
+    elsif word == 'Главное меню'
       show_main_menu(chat_id)
       return
     end
@@ -273,7 +295,7 @@ class MarkovBot
   def main_menu_keyboard
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
-        [{ text: '📝 Ввести систему' }, { text: '🔤 Ввести слово' }],
+        [{ text: 'Ввести систему' }, { text: 'Ввести слово' }],
         [{ text: '/help' }, { text: '/stop' }]
       ],
       resize_keyboard: true,
@@ -284,8 +306,20 @@ class MarkovBot
   def cancel_keyboard
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
-        [{ text: '❌ Завершить ввод' }],
-        [{ text: '🏠 Главное меню' }]
+        [{ text: 'Завершить ввод' }],
+        [{ text: 'Главное меню' }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false
+    )
+  end
+
+  def system_keyboard
+    Telegram::Bot::Types::ReplyKeyboardMarkup.new(
+      keyboard: [
+        [{ text: 'Удалить последнее правило' }],
+        [{ text: 'Завершить ввод' }],
+        [{ text: 'Главное меню' }]
       ],
       resize_keyboard: true,
       one_time_keyboard: false

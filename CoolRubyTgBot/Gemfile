@@ -1,3 +1,4 @@
 source 'https://rubygems.org'
+
 gem 'telegram-bot-ruby'
-gem 'cool_ruby_gem', path: './temp_gem/cool_ruby_gem'
+gem 'cool_ruby_gem', path: './cool_ruby_gem'

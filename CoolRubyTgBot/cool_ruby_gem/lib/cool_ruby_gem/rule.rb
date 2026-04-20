@@ -1,21 +1,16 @@
-# frozen_string_literal: true
+﻿# frozen_string_literal: true
 module CoolRubyGem
   class Rule
     def initialize(rule)
       @is_end = rule.match?(/->\./)
-
       rule = rule.gsub(' ', '')
-
       unless rule.match?(/^[a-zA-Z]+->\.?[a-zA-Z]*$/)
         raise "Error! Incorrect rule format: '#{rule}'"
       end
-
       rule = rule.gsub('.', '') if @is_end
-
       rule = rule.split('->')
       @x = rule[0]
       @y = rule[1]
-
     end
 
     def to_s
@@ -32,9 +27,7 @@ module CoolRubyGem
     end
 
     def apply(word)
-
       return word unless can_be_used?(word)
-
       if @x == 'e' && @y == 'e'
         word
       elsif @x == 'e'
@@ -44,8 +37,6 @@ module CoolRubyGem
       else
         word.sub(@x, @y)
       end
-
     end
-
   end
 end
