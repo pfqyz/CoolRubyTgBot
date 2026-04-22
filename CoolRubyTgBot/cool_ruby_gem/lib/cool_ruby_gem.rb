@@ -1,7 +1,7 @@
 ﻿# lib/cool_ruby_gem.rb
-require_relative "CoolRubyGem/version"
-require_relative "CoolRubyGem/rule"
-require_relative "CoolRubyGem/system"
+require_relative 'cool_ruby_gem/version'
+require_relative "cool_ruby_gem/rule"
+require_relative "cool_ruby_gem/system"
 
 module CoolRubyGem
 end
