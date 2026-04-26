@@ -84,6 +84,9 @@ class MarkovBot
       when 'Удалить последнее правило'
         puts "#{chat_id}- Удалить последнее правило"
         delete_last_rule(chat_id)
+      when 'Показать результат'
+        puts "#{chat_id}- Показать результат"
+        show_result(chat_id)
       else
         puts "#{chat_id}- текст не распознан как действие "
         # Если текст не распознан как действие – игнорируем или показываем меню
@@ -101,7 +104,10 @@ class MarkovBot
     if session.data[:rules].nil? || session.data[:rules].empty?
       @bot.api.send_message(
         chat_id: chat_id,
-        text: 'Правил пока нет.',
+        text: "Правил пока нет.\n\n
+Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
+Когда закончите, нажмите кнопку 'Завершить ввод'.\n
+Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
         reply_markup: system_keyboard
       )
       return
@@ -109,18 +115,22 @@ class MarkovBot
     session.data[:rules].pop
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].join(', ')}",
+      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].join(', ')}\n\n
+Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
+Когда закончите, нажмите кнопку 'Завершить ввод'.\n
+Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
       reply_markup: system_keyboard
     )
   end
 
+  # Очищаем систему правил полностью
   def clear_system(chat_id)
     session = @sessions[chat_id]
 
     if session.data[:rules].nil? || session.data[:rules].empty?
       @bot.api.send_message(
         chat_id: chat_id,
-        text: 'Система правил уже пуста. Введите новые правила.',
+        text: 'Система правил пуста. Введите новые правила.',
         reply_markup: system_keyboard
       )
       return
@@ -131,11 +141,14 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Система очищена. Теперь вы можете ввести новые правила.\n\nВведите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
+      text: "Система очищена. Теперь вы можете ввести новые правила.\n\n
+Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
+Когда закончите, нажмите кнопку 'Завершить ввод'.\n
+Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
       reply_markup: system_keyboard
     )
   end
-
+  # ---- Базовые команды ----
   def start_command(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
@@ -156,16 +169,31 @@ class MarkovBot
   def help_command(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Доступные действия:\nВвести систему правил\nВвести слово\n\nПосле ввода системы и слова я применю алгоритм Маркова.",
+      text: "Доступные действия:\n
+Ввести систему правил\n
+Ввести слово\n
+Помощь(/help)\n
+Начать работу(/start)\n
+Остановить работу(/stop)\n\n
+После ввода системы и слова я применю алгоритм Маркова.",
       reply_markup: main_menu_keyboard
     )
   end
 
   # ---- Действия по кнопкам ----
+  def show_result(chat_id)
+
+  end
+
   def show_main_menu(chat_id)
+    session = @sessions[chat_id]
+    rules = system(session.data[:rules])
+    word = session.data[:word]
     @bot.api.send_message(
       chat_id: chat_id,
-      text: 'Главное меню',
+      text: "Главное меню\n\n
+Система: #{rules.to_s}\n
+Исходное слово: #{word}",
       reply_markup: main_menu_keyboard
     )
   end
@@ -177,8 +205,11 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
-      reply_markup: system_keyboard # клавиатура с кнопкой "Завершить ввод"
+      text: "
+Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
+Когда закончите, нажмите кнопку 'Завершить ввод'.\n
+Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
+      reply_markup: system_keyboard
     )
   end
 
@@ -201,26 +232,42 @@ class MarkovBot
     if mode == :waiting_for_rule
       # Завершаем ввод правил
       if session.data[:word] && session.data[:rules]
-        apply_algorithm(chat_id)
+        @bot.api.send_message(
+          chat_id: chat_id,
+          text: "Ввод правил завершён.",
+        )
       else
         session.mode = nil
         @bot.api.send_message(
           chat_id: chat_id,
-          text: "Ввод правил завершён. Чтобы применить алгоритм, введите слово (кнопка 'Ввести слово').",
+          text: "Ввод правил завершён.\nЧтобы применить алгоритм, сначала введите слово (кнопка 'Ввести слово').",
           reply_markup: main_menu_keyboard
         )
       end
     elsif mode == :waiting_for_word
       # Завершаем ввод слова
       if session.data[:word] && session.data[:rules]
+        @bot.api.send_message(
+          chat_id: chat_id,
+          text: "Слово сохранено.",
+          )
         apply_algorithm(chat_id)
       else
         session.mode = nil
-        @bot.api.send_message(
-          chat_id: chat_id,
-          text: "Слово сохранено. Теперь введите систему правил (кнопка 'Ввести систему').",
-          reply_markup: main_menu_keyboard
-        )
+        if session.data[:word]
+          @bot.api.send_message(
+            chat_id: chat_id,
+            text: "Слово сохранено. Теперь введите систему правил (кнопка 'Ввести систему').",
+            reply_markup: main_menu_keyboard
+          )
+        else
+          @bot.api.send_message(
+            chat_id: chat_id,
+            text: "Слово не было введено.",
+            reply_markup: main_menu_keyboard
+          )
+        end
+
       end
     else
       # Если не в режиме ввода – просто показать меню
@@ -228,6 +275,7 @@ class MarkovBot
     end
   end
 
+=begin
   def cancel_input(chat_id)
     puts "#{chat_id}- Ввод завершен "
     session = @sessions[chat_id]
@@ -239,6 +287,7 @@ class MarkovBot
       reply_markup: main_menu_keyboard
     )
   end
+=end
 
   # ---- Обработка ввода данных ----
   def process_rule_input(chat_id, rule_text)
@@ -295,6 +344,13 @@ class MarkovBot
     end
 
     session.data[:word] = word
+    @bot.api.send_message(
+      chat_id: chat_id,
+      text: "Слово #{word} сохранено. \n\n
+Нажмите 'Ввести другое слово' для ввода другого слова.\n
+Когда закончите, нажмите кнопку 'Завершить ввод'.\n
+Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
+      )
     cancel_word_keyboard
     # Если система правил уже введена, можно сразу применить
 
@@ -306,18 +362,20 @@ class MarkovBot
 
     session = @sessions[chat_id]
     rules = CoolRubyGem::System.new(session.data[:rules])
-    word = session.data[:word]
+    word = session.data[:word].dup
 
     # Здесь ваш алгоритм применения правил Маркова
     res = rules.result(word)
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Система: #{rules}\nИсходное слово: #{word}\nРезультат: #{res}",
+      text: "Алгоритм выполняется...\n\n
+Система: #{rules}\n
+Исходное слово: #{word}\n
+Результат: #{res}",
       reply_markup: main_menu_keyboard
     )
     session.mode = nil
-    session.data = {}
   end
 
   # ---- Клавиатуры ----
@@ -325,6 +383,7 @@ class MarkovBot
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
         [{ text: 'Ввести систему' }, { text: 'Ввести слово' }],
+        [{text: 'Показать результат'}],
         [{ text: '/help' }, { text: '/stop' }]
       ],
       resize_keyboard: true,
