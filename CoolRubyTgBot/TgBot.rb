@@ -71,6 +71,10 @@ class MarkovBot
       when 'Ввести слово'
         puts "#{chat_id}- Ввести слово"
         start_word_input(chat_id)
+      when 'Ввести другое слово'
+        puts "#{chat_id}- Ввести другое слово"
+        session.data[:word] = nil
+        start_word_input(chat_id)
       when 'Завершить ввод'
         puts "#{chat_id}- Завершить ввод"
         finish_input(chat_id)
@@ -127,7 +131,7 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "✅ Система очищена. Теперь вы можете ввести новые правила.\n\nВведите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
+      text: "Система очищена. Теперь вы можете ввести новые правила.\n\nВведите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
       reply_markup: system_keyboard
     )
   end
@@ -185,7 +189,7 @@ class MarkovBot
     @bot.api.send_message(
       chat_id: chat_id,
       text: 'Введите исходное слово (например, abab):',
-      reply_markup: cancel_keyboard
+      reply_markup: cancel_word_keyboard
     )
   end
 
@@ -196,7 +200,7 @@ class MarkovBot
 
     if mode == :waiting_for_rule
       # Завершаем ввод правил
-      if session.data[:word] && !session.data[:rules].empty?
+      if session.data[:word] && session.data[:rules]
         apply_algorithm(chat_id)
       else
         session.mode = nil
@@ -208,7 +212,7 @@ class MarkovBot
       end
     elsif mode == :waiting_for_word
       # Завершаем ввод слова
-      if session.data[:word] && !session.data[:rules].empty?
+      if session.data[:word] && session.data[:rules]
         apply_algorithm(chat_id)
       else
         session.mode = nil
@@ -281,24 +285,21 @@ class MarkovBot
       finish_input(chat_id)
       return
     elsif word == 'Главное меню'
+      finish_input(chat_id)
       show_main_menu(chat_id)
+      return
+    elsif word == 'Ввести другое слово'
+      session.data[:word] = nil
+      start_word_input(chat_id)
       return
     end
 
     session.data[:word] = word
-
+    cancel_word_keyboard
     # Если система правил уже введена, можно сразу применить
-    if session.data[:rules] && !session.data[:rules].empty?
-      apply_algorithm(chat_id)
-    else
-      @bot.api.send_message(
-        chat_id: chat_id,
-        text: "Слово '#{word}' сохранено. Теперь введите систему правил (кнопка '📝 Ввести систему').",
-        reply_markup: main_menu_keyboard
-      )
-      session.mode = nil # выходим из режима ожидания слова
-    end
+
   end
+
 
   def apply_algorithm(chat_id)
     puts "#{chat_id}- Результат подстановки"
@@ -331,16 +332,18 @@ class MarkovBot
     )
   end
 
-  def cancel_keyboard
+  def cancel_word_keyboard
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
         [{ text: 'Завершить ввод' }],
+        [{ text: 'Ввести другое слово' }],
         [{ text: 'Главное меню' }]
       ],
       resize_keyboard: true,
       one_time_keyboard: false
     )
   end
+
 
   def system_keyboard
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
