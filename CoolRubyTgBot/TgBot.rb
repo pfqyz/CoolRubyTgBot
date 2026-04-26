@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'telegram/bot'
 require 'cool_ruby_gem'
 
@@ -7,6 +8,7 @@ token = '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk'
 
 class UserSession
   attr_accessor :mode, :data
+
   def initialize
     @mode = nil          # :waiting_for_rule, :waiting_for_word, nil
     @data = {}           # { rules: [], word: nil, ... }
@@ -22,7 +24,7 @@ class MarkovBot
   def start
     Telegram::Bot::Client.run(@token) do |bot|
       @bot = bot
-      puts "Бот запущен"
+      puts 'Бот запущен'
       bot.listen { |message| handle_message(message) }
     end
   end
@@ -38,18 +40,19 @@ class MarkovBot
     session = @sessions[chat_id]
 
     # Обработка команд /start, /stop, /help (разрешён ручной ввод)
-    if text == '/start'
+    case text
+    when '/start'
       puts "#{chat_id}- /start"
       session.mode = nil
       session.data = {}
       start_command(chat_id)
       return
-    elsif text == '/stop'
+    when '/stop'
       puts "#{chat_id}- /stop"
       stop_command(chat_id)
       return
-    elsif text == '/help'
-      puts  "#{chat_id}- /help"
+    when '/help'
+      puts "#{chat_id}- /help"
       help_command(chat_id)
       return
     end
@@ -75,28 +78,26 @@ class MarkovBot
         puts "#{chat_id}- Главное меню"
         show_main_menu(chat_id)
       when 'Удалить последнее правило'
-        puts  "#{chat_id}- Удалить последнее правило"
+        puts "#{chat_id}- Удалить последнее правило"
         delete_last_rule(chat_id)
       else
         puts "#{chat_id}- текст не распознан как действие "
         # Если текст не распознан как действие – игнорируем или показываем меню
         @bot.api.send_message(
-
           chat_id: chat_id,
-          text: "Пожалуйста, используйте кнопки. Если вы вводите правило или слово, сначала нажмите соответствующую кнопку.",
+          text: 'Пожалуйста, используйте кнопки. Если вы вводите правило или слово, сначала нажмите соответствующую кнопку.',
           reply_markup: main_menu_keyboard
         )
       end
     end
   end
 
-
   def delete_last_rule(chat_id)
     session = @sessions[chat_id]
     if session.data[:rules].nil? || session.data[:rules].empty?
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "Правил пока нет.",
+        text: 'Правил пока нет.',
         reply_markup: system_keyboard
       )
       return
@@ -104,11 +105,32 @@ class MarkovBot
     session.data[:rules].pop
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].map(&:to_s).join(', ')}",
+      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].join(', ')}",
       reply_markup: system_keyboard
     )
   end
 
+  def clear_system(chat_id)
+    session = @sessions[chat_id]
+
+    if session.data[:rules].nil? || session.data[:rules].empty?
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: 'Система правил уже пуста. Введите новые правила.',
+        reply_markup: system_keyboard
+      )
+      return
+    end
+
+    # Очищаем массив правил
+    session.data[:rules] = []
+
+    @bot.api.send_message(
+      chat_id: chat_id,
+      text: "✅ Система очищена. Теперь вы можете ввести новые правила.\n\nВведите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
+      reply_markup: system_keyboard
+    )
+  end
 
   def start_command(chat_id)
     @bot.api.send_message(
@@ -121,7 +143,7 @@ class MarkovBot
   def stop_command(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "До свидания! Чтобы начать заново, нажмите /start",
+      text: 'До свидания! Чтобы начать заново, нажмите /start',
       reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
     )
     @sessions.delete(chat_id)
@@ -139,7 +161,7 @@ class MarkovBot
   def show_main_menu(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Главное меню",
+      text: 'Главное меню',
       reply_markup: main_menu_keyboard
     )
   end
@@ -152,7 +174,7 @@ class MarkovBot
     @bot.api.send_message(
       chat_id: chat_id,
       text: "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\nКогда закончите, нажмите кнопку 'Завершить ввод'.",
-      reply_markup: system_keyboard   # клавиатура с кнопкой "Завершить ввод"
+      reply_markup: system_keyboard # клавиатура с кнопкой "Завершить ввод"
     )
   end
 
@@ -162,7 +184,7 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Введите исходное слово (например, abab):",
+      text: 'Введите исходное слово (например, abab):',
       reply_markup: cancel_keyboard
     )
   end
@@ -209,7 +231,7 @@ class MarkovBot
     session.data = {}
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Ввод отменён. Возвращаемся в главное меню.",
+      text: 'Ввод отменён. Возвращаемся в главное меню.',
       reply_markup: main_menu_keyboard
     )
   end
@@ -219,13 +241,19 @@ class MarkovBot
     session = @sessions[chat_id]
     puts "#{chat_id}- Обработка ввода правил"
 
-    if rule_text == 'Завершить ввод'
+    case rule_text
+    when 'Завершить ввод'
       finish_input(chat_id)
       return
-    elsif rule_text == 'Удалить последнее правило'
+    when 'Удалить последнее правило'
       delete_last_rule(chat_id)
       return
-    elsif rule_text == 'Главное меню'
+    when 'Очистить систему'
+      clear_system(chat_id)
+      return
+    when 'Главное меню'
+      session.mode = nil
+      session.data = {}
       show_main_menu(chat_id)
       return
     end
@@ -235,9 +263,9 @@ class MarkovBot
       session.data[:rules] << rule
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "Правило добавлено: #{rule}\nТекущая система: #{session.data[:rules].map(&:to_s).join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
+        text: "Правило добавлено: #{rule}\nТекущая система: #{session.data[:rules].join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
       )
-    rescue => e
+    rescue StandardError => e
       @bot.api.send_message(
         chat_id: chat_id,
         text: "Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
@@ -268,7 +296,7 @@ class MarkovBot
         text: "Слово '#{word}' сохранено. Теперь введите систему правил (кнопка '📝 Ввести систему').",
         reply_markup: main_menu_keyboard
       )
-      session.mode = nil   # выходим из режима ожидания слова
+      session.mode = nil # выходим из режима ожидания слова
     end
   end
 
@@ -284,7 +312,7 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Система: #{rules.to_s}\nИсходное слово: #{word}\nРезультат: #{res}",
+      text: "Система: #{rules}\nИсходное слово: #{word}\nРезультат: #{res}",
       reply_markup: main_menu_keyboard
     )
     session.mode = nil
@@ -318,6 +346,7 @@ class MarkovBot
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
         [{ text: 'Удалить последнее правило' }],
+        [{ text: 'Очистить систему' }],
         [{ text: 'Завершить ввод' }],
         [{ text: 'Главное меню' }]
       ],
