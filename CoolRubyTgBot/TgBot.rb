@@ -4,6 +4,10 @@ require 'telegram/bot'
 require 'cool_ruby_gem'
 require_relative 'settings'
 
+TEXT_SYSTEM_COMMANDS = "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
+Когда закончите, нажмите кнопку 'Завершить ввод'.\n
+Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню."
+
 class UserSession
   attr_accessor :mode, :data
 
@@ -22,6 +26,7 @@ class MarkovBot
   def start
     Telegram::Bot::Client.run(@token) do |bot|
       @bot = bot
+      #bot.api.delete_webhook
       puts 'Бот запущен'
       bot.listen { |message| handle_message(message) }
     end
@@ -102,10 +107,7 @@ class MarkovBot
     if session.data[:rules].nil? || session.data[:rules].empty?
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "Правил пока нет.\n\n
-Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
-Когда закончите, нажмите кнопку 'Завершить ввод'.\n
-Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
+        text: "Правил пока нет.\n\n#{TEXT_SYSTEM_COMMANDS}",
         reply_markup: system_keyboard
       )
       return
@@ -113,10 +115,7 @@ class MarkovBot
     session.data[:rules].pop
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].join(', ')}\n\n
-Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
-Когда закончите, нажмите кнопку 'Завершить ввод'.\n
-Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
+      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].join(', ')}\n\n#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
   end
@@ -128,7 +127,7 @@ class MarkovBot
     if session.data[:rules].nil? || session.data[:rules].empty?
       @bot.api.send_message(
         chat_id: chat_id,
-        text: 'Система правил пуста. Введите новые правила.',
+        text: "Система правил пуста. Введите новые правила.\n\n#{TEXT_SYSTEM_COMMANDS}",
         reply_markup: system_keyboard
       )
       return
@@ -139,10 +138,7 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Система очищена. Теперь вы можете ввести новые правила.\n\n
-Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
-Когда закончите, нажмите кнопку 'Завершить ввод'.\n
-Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
+      text: "Система очищена. Теперь вы можете ввести новые правила.\n\n#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
   end
@@ -185,15 +181,25 @@ class MarkovBot
 
   def show_main_menu(chat_id)
     session = @sessions[chat_id]
-    rules = system(session.data[:rules])
-    word = session.data[:word]
-    @bot.api.send_message(
-      chat_id: chat_id,
-      text: "Главное меню\n\n
+    if session.data[:rules] && session.data[:word]
+      rules = system(session.data[:rules])
+      word = session.data[:word]
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "Главное меню\n\n
 Система: #{rules.to_s}\n
 Исходное слово: #{word}",
-      reply_markup: main_menu_keyboard
-    )
+        reply_markup: main_menu_keyboard
+      )
+    else
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "Главное меню\n\n
+Система: \n
+Исходное слово: ",
+        reply_markup: main_menu_keyboard
+      )
+    end
   end
 
   def start_system_input(chat_id)
@@ -203,10 +209,7 @@ class MarkovBot
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "
-Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
-Когда закончите, нажмите кнопку 'Завершить ввод'.\n
-Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
+      text: "#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
   end
@@ -304,7 +307,7 @@ class MarkovBot
       return
     when 'Главное меню'
       session.mode = nil
-      session.data = {}
+      session.data[:rules] = []
       show_main_menu(chat_id)
       return
     end
