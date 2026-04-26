@@ -2,9 +2,7 @@
 
 require 'telegram/bot'
 require 'cool_ruby_gem'
-
-
-token = '8785997708:AAFzO-M6h4Qp7gq8RDPKEdlGNo4JsmG23pk'
+require_relative 'settings'
 
 class UserSession
   attr_accessor :mode, :data
@@ -419,4 +417,4 @@ class MarkovBot
 end
 
 # Запуск
-MarkovBot.new(token).start
+MarkovBot.new(TOKEN).start
