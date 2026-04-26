@@ -27,6 +27,13 @@ class MarkovBot
     Telegram::Bot::Client.run(@token) do |bot|
       @bot = bot
       #bot.api.delete_webhook
+      bot.api.set_my_commands(
+        commands: [
+          { command: '/start', description: 'Начать работу с ботом' },
+          { command: '/help', description: 'Получить справку' },
+          { command: '/stop', description: 'Закончить работу с ботом' }
+        ]
+      )
       puts 'Бот запущен'
       bot.listen { |message| handle_message(message) }
     end
@@ -176,13 +183,13 @@ class MarkovBot
 
   # ---- Действия по кнопкам ----
   def show_result(chat_id)
-
+    apply_algorithm(chat_id)
   end
 
   def show_main_menu(chat_id)
     session = @sessions[chat_id]
-    if session.data[:rules] && session.data[:word]
-      rules = system(session.data[:rules])
+    if session.data[:rules]
+      rules = CoolRubyGem::System.new(session.data[:rules])
       word = session.data[:word]
       @bot.api.send_message(
         chat_id: chat_id,
@@ -191,15 +198,15 @@ class MarkovBot
 Исходное слово: #{word}",
         reply_markup: main_menu_keyboard
       )
-    else
-      @bot.api.send_message(
-        chat_id: chat_id,
-        text: "Главное меню\n\n
-Система: \n
-Исходное слово: ",
-        reply_markup: main_menu_keyboard
-      )
+      return
     end
+    @bot.api.send_message(
+      chat_id: chat_id,
+      text: "Главное меню\n\n
+Система: #{rules}\n
+Исходное слово: #{word}",
+      reply_markup: main_menu_keyboard
+    )
   end
 
   def start_system_input(chat_id)
@@ -241,7 +248,7 @@ class MarkovBot
         session.mode = nil
         @bot.api.send_message(
           chat_id: chat_id,
-          text: "Ввод правил завершён.\nЧтобы применить алгоритм, сначала введите слово (кнопка 'Ввести слово').",
+          text: "Ввод правил завершён.\nЧтобы применить алгоритм, введите слово (кнопка 'Ввести слово').",
           reply_markup: main_menu_keyboard
         )
       end
@@ -252,7 +259,6 @@ class MarkovBot
           chat_id: chat_id,
           text: "Слово сохранено.",
           )
-        apply_algorithm(chat_id)
       else
         session.mode = nil
         if session.data[:word]
@@ -273,7 +279,9 @@ class MarkovBot
     else
       # Если не в режиме ввода – просто показать меню
       show_main_menu(chat_id)
+      return
     end
+    show_main_menu(chat_id)
   end
 
 =begin
@@ -317,7 +325,7 @@ class MarkovBot
       session.data[:rules] << rule
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "Правило добавлено: #{rule}\nТекущая система: #{session.data[:rules].join(', ')}\nВведите ещё правило или нажмите 'Завершить ввод'."
+        text: "Правило добавлено: #{rule}\nТекущая система: #{session.data[:rules].join(', ')}\n\nВведите ещё правило или нажмите 'Завершить ввод'."
       )
     rescue StandardError => e
       @bot.api.send_message(
@@ -384,8 +392,7 @@ class MarkovBot
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
         [{ text: 'Ввести систему' }, { text: 'Ввести слово' }],
-        [{text: 'Показать результат'}],
-        [{ text: '/help' }, { text: '/stop' }]
+        [{text: 'Показать результат'}]
       ],
       resize_keyboard: true,
       one_time_keyboard: false
