@@ -16,7 +16,7 @@ class UserSession
   def initialize
     @mode = nil          # :waiting_for_rule, :waiting_for_word, nil
     @data = {}           # { rules: [], word: nil, ... }
-    load_sessions
+
   end
 end
 
@@ -24,6 +24,8 @@ class MarkovBot
   def initialize(token)
     @token = token
     @sessions = {}       # chat_id -> UserSession
+
+    load_sessions
   end
 
   def start
@@ -43,6 +45,7 @@ class MarkovBot
   end
 
   private
+
 
   def load_sessions
     return unless File.exist?(SESSION_FILE)
@@ -76,7 +79,6 @@ class MarkovBot
   rescue => e
     puts "Ошибка сохранения сессий: #{e.message}"
   end
-
 
   def handle_message(message)
     chat_id = message.chat.id
@@ -134,6 +136,9 @@ class MarkovBot
       when 'Показать результат'
         puts "#{chat_id}- Показать результат"
         show_result(chat_id)
+      when 'Пошаговое решение'
+        puts "#{chat_id}- Пошаговый вывод"
+        apply_algorithm_step_by_step(chat_id)
       else
         puts "#{chat_id}- текст не распознан как действие "
         # Если текст не распознан как действие – игнорируем или показываем меню
@@ -229,14 +234,46 @@ class MarkovBot
     apply_algorithm(chat_id)
   end
 
+  def apply_algorithm_step_by_step(chat_id)
+    session = @sessions[chat_id]
+    return unless session.data[:rules]&.any? && session.data[:word]&.size&.positive?
+
+    rules = CoolRubyGem::System.new(session.data[:rules])
+    word = session.data[:word].dup
+
+    result = nil
+    log = capture_stdout { result = rules.step_by_step_solution(word) }
+
+    if log.empty?
+      @bot.api.send_message(chat_id: chat_id, text: "Результат: #{result}")
+    else
+      messages = log.each_line.chunk_while { |_, after| after.length < 4000 }.map(&:join)
+      messages.each { |msg| @bot.api.send_message(chat_id: chat_id, text: "```\n#{msg}\n```", parse_mode: 'Markdown') }
+      @bot.api.send_message(chat_id: chat_id, text: "Результат: #{result}")
+    end
+    show_main_menu(chat_id)
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+
+
   def show_main_menu(chat_id)
     session = @sessions[chat_id]
     session.mode = nil
+    rules = session.data[:rules] || []
+    word  = session.data[:word] || 'не введено'
     @bot.api.send_message(
       chat_id: chat_id,
       text: "Главное меню\n\n
-Система: {#{session.data[:rules].join(', ')}}\n
-Исходное слово: #{session.data[:word]}",
+Система: {#{rules.join(', ')}}\n
+Исходное слово: #{word}",
       reply_markup: main_menu_keyboard
     )
   end
@@ -244,7 +281,7 @@ class MarkovBot
   def start_system_input(chat_id)
     session = @sessions[chat_id]
     session.mode = :waiting_for_rule
-    session.data[:rules] = [] unless session.data[:rules]
+    session.data[:rules] ||= []
 
     @bot.api.send_message(
       chat_id: chat_id,
@@ -437,6 +474,7 @@ class MarkovBot
     )
     session.mode = nil
     save_sessions
+    show_main_menu(chat_id)
   end
 
   # ---- Клавиатуры ----
@@ -444,7 +482,7 @@ class MarkovBot
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
         [{ text: 'Ввести систему' }, { text: 'Ввести слово' }],
-        [{text: 'Показать результат'}]
+        [{text: 'Показать результат'},{text: 'Пошаговое решение'}]
       ],
       resize_keyboard: true,
       one_time_keyboard: false
