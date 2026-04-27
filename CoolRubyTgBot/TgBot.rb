@@ -504,5 +504,6 @@ class MarkovBot
   end
 end
 
-# Запуск
-MarkovBot.new(TOKEN).start
+if __FILE__ == $0
+  MarkovBot.new(TOKEN).start
+end
