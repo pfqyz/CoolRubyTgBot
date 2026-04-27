@@ -122,7 +122,7 @@ class MarkovBot
     session.data[:rules].pop
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Последнее правило удалено. Текущая система: #{session.data[:rules].join(', ')}\n\n#{TEXT_SYSTEM_COMMANDS}",
+      text: "Последнее правило удалено. Текущая система: {#{session.data[:rules].join(', ')}}\n\n#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
   end
@@ -183,28 +183,19 @@ class MarkovBot
 
   # ---- Действия по кнопкам ----
   def show_result(chat_id)
+    session = @sessions[chat_id]
+    session.mode = nil
     apply_algorithm(chat_id)
   end
 
   def show_main_menu(chat_id)
     session = @sessions[chat_id]
-    if session.data[:rules]
-      rules = CoolRubyGem::System.new(session.data[:rules])
-      word = session.data[:word]
-      @bot.api.send_message(
-        chat_id: chat_id,
-        text: "Главное меню\n\n
-Система: #{rules.to_s}\n
-Исходное слово: #{word}",
-        reply_markup: main_menu_keyboard
-      )
-      return
-    end
+    session.mode = nil
     @bot.api.send_message(
       chat_id: chat_id,
       text: "Главное меню\n\n
-Система: #{rules}\n
-Исходное слово: #{word}",
+Система: {#{session.data[:rules].join(', ')}}\n
+Исходное слово: #{session.data[:word]}",
       reply_markup: main_menu_keyboard
     )
   end
@@ -212,7 +203,7 @@ class MarkovBot
   def start_system_input(chat_id)
     session = @sessions[chat_id]
     session.mode = :waiting_for_rule
-    session.data[:rules] = []
+    session.data[:rules] = [] unless session.data[:rules]
 
     @bot.api.send_message(
       chat_id: chat_id,
@@ -276,10 +267,10 @@ class MarkovBot
         end
 
       end
-    else
+      # else
       # Если не в режиме ввода – просто показать меню
-      show_main_menu(chat_id)
-      return
+      # show_main_menu(chat_id)
+      # return
     end
     show_main_menu(chat_id)
   end
@@ -365,23 +356,39 @@ class MarkovBot
 
   end
 
-
   def apply_algorithm(chat_id)
     puts "#{chat_id}- Результат подстановки"
 
     session = @sessions[chat_id]
+
+    # Проверка наличия правил
+    if session.data[:rules].nil? || session.data[:rules].empty?
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "Сначала введите систему правил (кнопка 'Ввести систему').",
+        reply_markup: main_menu_keyboard
+      )
+      return
+    end
+
+    # Проверка наличия слова
+    if session.data[:word].nil? || session.data[:word].empty?
+      @bot.api.send_message(
+        chat_id: chat_id,
+        text: "Сначала введите исходное слово (кнопка 'Ввести слово').",
+        reply_markup: main_menu_keyboard
+      )
+      return
+    end
+
     rules = CoolRubyGem::System.new(session.data[:rules])
     word = session.data[:word].dup
 
-    # Здесь ваш алгоритм применения правил Маркова
     res = rules.result(word)
 
     @bot.api.send_message(
       chat_id: chat_id,
-      text: "Алгоритм выполняется...\n\n
-Система: #{rules}\n
-Исходное слово: #{word}\n
-Результат: #{res}",
+      text: "Алгоритм выполняется...\n\nСистема: #{rules}\nИсходное слово: #{word}\nРезультат: #{res}",
       reply_markup: main_menu_keyboard
     )
     session.mode = nil
