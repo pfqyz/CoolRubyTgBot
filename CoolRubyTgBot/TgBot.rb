@@ -3,7 +3,9 @@
 require 'telegram/bot'
 require 'cool_ruby_gem'
 require_relative 'settings'
+require 'json'
 
+SESSION_FILE = 'sessions.json'
 TEXT_SYSTEM_COMMANDS = "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
 Когда закончите, нажмите кнопку 'Завершить ввод'.\n
 Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню."
@@ -14,6 +16,7 @@ class UserSession
   def initialize
     @mode = nil          # :waiting_for_rule, :waiting_for_word, nil
     @data = {}           # { rules: [], word: nil, ... }
+    load_sessions
   end
 end
 
@@ -40,6 +43,40 @@ class MarkovBot
   end
 
   private
+
+  def load_sessions
+    return unless File.exist?(SESSION_FILE)
+    data = JSON.parse(File.read(SESSION_FILE))
+    data.each do |chat_id_str, session_data|
+      chat_id = chat_id_str.to_i
+      session = UserSession.new
+      # Восстанавливаем mode (символ или nil)
+      mode_str = session_data['mode']
+      session.mode = mode_str ? mode_str.to_sym : nil
+      session.data = {
+        'rules' => session_data['rules'] || [],
+        'word'   => session_data['word']
+      }
+      @sessions[chat_id] = session
+    end
+  rescue => e
+    puts "Ошибка загрузки сессий: #{e.message}"
+  end
+
+  def save_sessions
+    data = {}
+    @sessions.each do |chat_id, session|
+      data[chat_id.to_s] = {
+        'mode'  => session.mode ? session.mode.to_s : nil,
+        'rules' => session.data[:rules] || [],
+        'word'  => session.data[:word]
+      }
+    end
+    File.write(SESSION_FILE, JSON.pretty_generate(data))
+  rescue => e
+    puts "Ошибка сохранения сессий: #{e.message}"
+  end
+
 
   def handle_message(message)
     chat_id = message.chat.id
@@ -125,6 +162,7 @@ class MarkovBot
       text: "Последнее правило удалено. Текущая система: {#{session.data[:rules].join(', ')}}\n\n#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
+    save_sessions
   end
 
   # Очищаем систему правил полностью
@@ -148,6 +186,7 @@ class MarkovBot
       text: "Система очищена. Теперь вы можете ввести новые правила.\n\n#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
+    save_sessions
   end
   # ---- Базовые команды ----
   def start_command(chat_id)
@@ -156,6 +195,7 @@ class MarkovBot
       text: "Привет! Я бот для алгоритмов Маркова.\nИспользуйте кнопки ниже.",
       reply_markup: main_menu_keyboard
     )
+    save_sessions
   end
 
   def stop_command(chat_id)
@@ -165,6 +205,7 @@ class MarkovBot
       reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
     )
     @sessions.delete(chat_id)
+    save_sessions
   end
 
   def help_command(chat_id)
@@ -210,6 +251,7 @@ class MarkovBot
       text: "#{TEXT_SYSTEM_COMMANDS}",
       reply_markup: system_keyboard
     )
+    save_sessions
   end
 
   def start_word_input(chat_id)
@@ -221,6 +263,7 @@ class MarkovBot
       text: 'Введите исходное слово (например, abab):',
       reply_markup: cancel_word_keyboard
     )
+    save_sessions
   end
 
   def finish_input(chat_id)
@@ -273,6 +316,7 @@ class MarkovBot
       # return
     end
     show_main_menu(chat_id)
+    save_sessions
   end
 
 =begin
@@ -324,6 +368,7 @@ class MarkovBot
         text: "Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
       )
     end
+    save_sessions
   end
 
   def process_word_input(chat_id, word)
@@ -352,8 +397,7 @@ class MarkovBot
 Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню.",
       )
     cancel_word_keyboard
-    # Если система правил уже введена, можно сразу применить
-
+    save_sessions
   end
 
   def apply_algorithm(chat_id)
@@ -392,6 +436,7 @@ class MarkovBot
       reply_markup: main_menu_keyboard
     )
     session.mode = nil
+    save_sessions
   end
 
   # ---- Клавиатуры ----

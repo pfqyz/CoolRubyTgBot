@@ -59,3 +59,4 @@ Gemfile.lock
 *.iml
 *.iws
 settings.rb
+sessions.json
