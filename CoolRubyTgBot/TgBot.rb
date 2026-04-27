@@ -6,7 +6,8 @@ require_relative 'settings'
 require 'json'
 
 SESSION_FILE = 'sessions.json'
-TEXT_SYSTEM_COMMANDS = "Введите правило в формате: A->B или A->.B (точка означает завершающее правило).\n
+TEXT_SYSTEM_COMMANDS = "Введите правило в формате: a->b или a->.b (точка означает завершающее правило).\n
+Для ввода правила с eps используйте e(англ.)
 Когда закончите, нажмите кнопку 'Завершить ввод'.\n
 Нажмите 'Главное меню', если не хотите сохранять изменения, вы перейдете в главное меню."
 
@@ -45,8 +46,6 @@ class MarkovBot
   end
 
   private
-
-
   def load_sessions
     return unless File.exist?(SESSION_FILE)
     data = JSON.parse(File.read(SESSION_FILE))
@@ -95,6 +94,7 @@ class MarkovBot
       session.mode = nil
       session.data = {}
       start_command(chat_id)
+      show_main_menu(chat_id)
       return
     when '/stop'
       puts "#{chat_id}- /stop"
@@ -214,6 +214,8 @@ class MarkovBot
   end
 
   def help_command(chat_id)
+    session = @sessions[chat_id]
+    session.mode = nil
     @bot.api.send_message(
       chat_id: chat_id,
       text: "Доступные действия:\n
@@ -356,20 +358,6 @@ class MarkovBot
     save_sessions
   end
 
-=begin
-  def cancel_input(chat_id)
-    puts "#{chat_id}- Ввод завершен "
-    session = @sessions[chat_id]
-    session.mode = nil
-    session.data = {}
-    @bot.api.send_message(
-      chat_id: chat_id,
-      text: 'Ввод отменён. Возвращаемся в главное меню.',
-      reply_markup: main_menu_keyboard
-    )
-  end
-=end
-
   # ---- Обработка ввода данных ----
   def process_rule_input(chat_id, rule_text)
     session = @sessions[chat_id]
@@ -402,7 +390,7 @@ class MarkovBot
     rescue StandardError => e
       @bot.api.send_message(
         chat_id: chat_id,
-        text: "Ошибка: #{e.message}\nПопробуйте снова. Формат: A->B или A->.B"
+        text: "Ошибка: #{e.message}\nПопробуйте снова. Формат: a->b или a->.b"
       )
     end
     save_sessions
