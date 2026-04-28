@@ -1,22 +1,15 @@
-# .rubocop.yml - настройки RuboCop для вашего проекта
 
 AllCops:
-  # Исключаем папку с вашим гемом (чтобы не проверять чужой код)
   Exclude:
     - 'cool_ruby_gem/**/*'
-  # Ваша версия Ruby
   TargetRubyVersion: 3.2
-  # Включаем новые проверки
   NewCops: enable
 
-# Исправленное правило (было Metrics/LineLength)
 Layout/LineLength:
   Max: 100
 
-# Разрешить чуть больше строк в методе
 Metrics/MethodLength:
   Max: 15
 
-# Отключить проверку на комментарии документации
 Style/Documentation:
   Enabled: false
