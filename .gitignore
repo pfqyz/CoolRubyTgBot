@@ -58,3 +58,5 @@ build-iPhoneSimulator/
 .idea/
 *.iml
 *.iws
+settings.rb
+sessions.json
