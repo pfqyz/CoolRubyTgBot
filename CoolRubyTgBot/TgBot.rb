@@ -104,6 +104,9 @@ class MarkovBot
       puts "#{chat_id}- /help"
       help_command(chat_id)
       return
+    when 'Сбросить всё'
+      puts "#{chat_id}- Сбросить всё"
+      reset_all(chat_id)
     end
 
     # Если пользователь в режиме ожидания ввода – обрабатываем как данные
@@ -193,6 +196,20 @@ class MarkovBot
     )
     save_sessions
   end
+
+  def reset_all(chat_id)
+    session = @sessions[chat_id]
+    session.mode = nil
+    session.data = {}
+    @bot.api.send_message(
+      chat_id: chat_id,
+      text: "🧹 Всё сброшено!\n\nПравила и слово удалены. Можете начать заново.",
+      reply_markup: main_menu_keyboard
+    )
+    save_sessions
+  end
+
+
   # ---- Базовые команды ----
   def start_command(chat_id)
     @bot.api.send_message(
@@ -316,7 +333,7 @@ class MarkovBot
         @bot.api.send_message(
           chat_id: chat_id,
           text: "Ввод правил завершён.",
-        )
+          )
       else
         session.mode = nil
         @bot.api.send_message(
@@ -470,7 +487,8 @@ class MarkovBot
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
         [{ text: 'Ввести систему' }, { text: 'Ввести слово' }],
-        [{text: 'Показать результат'},{text: 'Пошаговое решение'}]
+        [{ text: 'Показать результат' }, { text: 'Пошаговое решение' }],
+        [{ text: 'Сбросить всё' }]
       ],
       resize_keyboard: true,
       one_time_keyboard: false
