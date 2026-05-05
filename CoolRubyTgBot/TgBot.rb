@@ -193,7 +193,7 @@ class MarkovBot
     )
     save_sessions
   end
-  # ---- Базовые команды ----
+  # Базовые команды
   def start_command(chat_id)
     @bot.api.send_message(
       chat_id: chat_id,
@@ -465,7 +465,7 @@ class MarkovBot
     show_main_menu(chat_id)
   end
 
-  # ---- Клавиатуры ----
+  # Клавиатуры
   def main_menu_keyboard
     Telegram::Bot::Types::ReplyKeyboardMarkup.new(
       keyboard: [
