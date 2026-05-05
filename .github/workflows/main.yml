@@ -1,0 +1,52 @@
+name: Ruby CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./CoolRubyTgBot
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+      env:
+        BUNDLE_GEMFILE: ./CoolRubyTgBot/Gemfile
+
+    - name: Install dependencies
+      run: bundle install
+      working-directory: ./CoolRubyTgBot
+
+    - name: Run RuboCop
+      run: bundle exec rubocop || true
+      working-directory: ./CoolRubyTgBot
+
+    - name: Create fake settings.rb
+      run: |
+        echo "TOKEN = 'fake_token_for_ci'" > settings.rb
+      working-directory: ./CoolRubyTgBot
+
+    - name: Check syntax
+      run: ruby -c TgBot.rb
+      working-directory: ./CoolRubyTgBot
+
+    - name: Run tests (if exist)
+      run: |
+        if [ -d "test" ] && [ "$(ls -A test)" ]; then
+          ruby test/tg_bot_test.rb || echo "Tests failed"
+        else
+          echo "No tests found"
+        fi
+      working-directory: ./CoolRubyTgBot

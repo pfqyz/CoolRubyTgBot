@@ -28,7 +28,8 @@ module CoolRubyGem
     end
 
     def step_by_step_solution(word, max_steps: 1000, max_length: 10000)
-      raise "The symbol 'e' appears in the initial word! 'e' is reserved for empty string." if word.include?('e')
+      # Убираем проверку на 'e' - теперь e может быть обычной буквой
+      # Эпсилон в правилах обрабатывается на уровне Rule
       w = word.dup
       puts "#{w} ->"
       steps = 0
@@ -71,7 +72,8 @@ module CoolRubyGem
     end
 
     def result(word, max_steps: 1000, max_length: 10000)
-      raise "The symbol 'e' appears in the initial word! 'e' is reserved for empty string." if word.include?('e')
+      # Убираем проверку на 'e' - теперь e может быть обычной буквой
+      # Эпсилон в правилах обрабатывается на уровне Rule
       w = word.dup
       steps = 0
       history = {}
